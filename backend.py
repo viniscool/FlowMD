@@ -64,16 +64,17 @@ def ingest(path, filename):
     finally: c.close()
 
 def summary(metric=None, days=30):
-    c=db(); where="WHERE day >= date('now', ?)"; args=(f'-{int(days)} days',)
+    c=db(); anchor=c.execute("SELECT MAX(day) FROM measurements").fetchone()[0] or date.today().isoformat(); where="WHERE day >= date(?, ?)"; args=(anchor,f'-{int(days)} days')
     if metric: where += " AND metric=?"; args += (metric,)
     rows=c.execute(f"SELECT metric,day,AVG(value) avg,MIN(value) min,MAX(value) max,COUNT(*) samples FROM measurements {where} GROUP BY metric,day ORDER BY day",args).fetchall(); c.close()
     return [dict(r) for r in rows]
 
 def insights():
-    c=db(); result=[]
+    c=db(); result=[]; anchor=c.execute("SELECT MAX(day) FROM measurements").fetchone()[0]
+    if not anchor: c.close(); return result
     for metric in ("resting_heart_rate","heart_rate","steps","walking_speed","respiratory_rate"):
-        r=c.execute("SELECT AVG(value) avg FROM measurements WHERE metric=? AND day >= date('now','-30 days')",(metric,)).fetchone()
-        old=c.execute("SELECT AVG(value) avg FROM measurements WHERE metric=? AND day BETWEEN date('now','-60 days') AND date('now','-31 days')",(metric,)).fetchone()
+        r=c.execute("SELECT AVG(value) avg FROM measurements WHERE metric=? AND day >= date(?, '-30 days')",(metric,anchor)).fetchone()
+        old=c.execute("SELECT AVG(value) avg FROM measurements WHERE metric=? AND day BETWEEN date(?, '-60 days') AND date(?, '-31 days')",(metric,anchor,anchor)).fetchone()
         if r and old and r[0] and old[0]:
             pct=(r[0]-old[0])/old[0]*100
             if abs(pct)>=8: result.append({"metric":metric,"current":round(r[0],2),"baseline":round(old[0],2),"change_pct":round(pct,1),"confidence":"high" if abs(pct)>=15 else "medium"})
@@ -100,7 +101,7 @@ class Handler(BaseHTTPRequestHandler):
             if file.suffix=='.html':
                 extras=''
                 if file.name=='import.html': extras='<script src="/import-api.js"></script>'
-                extras+='<script src="/nav.js"></script>'
+                extras+='<script src="/nav.js"></script><script src="/live-data.js"></script>'
                 body=body.replace(b'</body>',extras.encode()+b'</body>')
             mime={'.html':'text/html; charset=utf-8','.css':'text/css; charset=utf-8','.js':'application/javascript; charset=utf-8','.json':'application/json','.xml':'application/xml; charset=utf-8'}.get(file.suffix,'application/octet-stream')
             self.send_response(200); self.send_header('Content-Type',mime); self.send_header('Content-Length',str(len(body))); self.end_headers(); self.wfile.write(body); return

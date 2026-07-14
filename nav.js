@@ -16,7 +16,7 @@
     if (routes[key]) a.href = routes[key];
     a.classList.toggle('active', a.href && a.href.endsWith(path));
   });
-  if (!side.querySelector('[data-import-link]')) {
+  if (!side.querySelector('[data-import-link], a[href="import.html"]')) {
     const a = document.createElement('a');
     a.href = 'import.html'; a.dataset.importLink = ''; a.textContent = '↥　Import data';
     a.classList.toggle('active', path === 'import.html');
