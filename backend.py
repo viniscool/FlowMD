@@ -102,7 +102,8 @@ class Handler(BaseHTTPRequestHandler):
                 if file.name=='import.html': extras='<script src="/import-api.js"></script>'
                 extras+='<script src="/nav.js"></script>'
                 body=body.replace(b'</body>',extras.encode()+b'</body>')
-            self.send_response(200); self.send_header('Content-Type','text/html' if file.suffix=='.html' else 'text/plain'); self.send_header('Content-Length',str(len(body))); self.end_headers(); self.wfile.write(body); return
+            mime={'.html':'text/html; charset=utf-8','.css':'text/css; charset=utf-8','.js':'application/javascript; charset=utf-8','.json':'application/json','.xml':'application/xml; charset=utf-8'}.get(file.suffix,'application/octet-stream')
+            self.send_response(200); self.send_header('Content-Type',mime); self.send_header('Content-Length',str(len(body))); self.end_headers(); self.wfile.write(body); return
         self.send_error(404)
     def do_POST(self):
         if self.path != '/api/import': return self.send_json({'error':'not found'},404)
