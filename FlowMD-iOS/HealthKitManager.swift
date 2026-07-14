@@ -1,0 +1,8 @@
+import Foundation
+import HealthKit
+
+final class HealthKitManager {
+    private let store = HKHealthStore()
+    private let identifiers: [(HKQuantityTypeIdentifier, Metric, HKUnit)] = [(.heartRate, .heartRate, .count().unitDivided(by: .minute())), (.restingHeartRate, .restingHeartRate, .count().unitDivided(by: .minute())), (.heartRateVariabilitySDNN, .hrv, .secondUnit(with: .milli)), (.stepCount, .steps, .count()), (.respiratoryRate, .respiratoryRate, .count().unitDivided(by: .minute()))]
+    func readSamples() async throws -> [HealthSample] { guard HKHealthStore.isHealthDataAvailable() else { throw NSError(domain: "FlowMD", code: 1, userInfo: [NSLocalizedDescriptionKey: "HealthKit is unavailable on this device."]) }; let types = Set(identifiers.compactMap { HKObjectType.quantityType(forIdentifier: $0.0) }); try await store.requestAuthorization(toShare: [], read: types); var result:[HealthSample]=[]; for (id,metric,unit) in identifiers { guard let type=HKObjectType.quantityType(forIdentifier:id) else { continue }; let samples = try await withCheckedThrowingContinuation { (c: CheckedContinuation<[HKQuantitySample], Error>) in let q=HKSampleQuery(sampleType:type,predicate:nil,limit:HKObjectQueryNoLimit,sortDescriptors:[NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: true)]) { _, objects, error in if let error { c.resume(throwing:error) } else { c.resume(returning: objects as? [HKQuantitySample] ?? []) } }; store.execute(q) }; result += samples.map { HealthSample(metric:metric,value:$0.quantity.doubleValue(for:unit),unit:unit.unitString,date:$0.startDate,source:$0.sourceRevision.source.name) } }; return result }
+}
