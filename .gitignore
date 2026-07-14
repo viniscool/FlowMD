@@ -1,0 +1,6 @@
+__pycache__/
+*.py[cod]
+flowmd.db
+.DS_Store
+.env
+.venv/

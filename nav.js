@@ -1,0 +1,1 @@
+const side=document.querySelector('.side');if(side&&!side.querySelector('[data-import-link]')){const a=document.createElement('a');a.href='import.html';a.dataset.importLink='';a.textContent='↥　Import data';side.insertBefore(a,side.querySelector('.bottom'))}
